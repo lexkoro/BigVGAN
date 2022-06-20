@@ -101,7 +101,7 @@ class Generator(torch.nn.Module):
 
         self.alphas.append(nn.Parameter(torch.ones(1, upsample_initial_channel, 1)).to(rank))
 
-        initial_freq = [690, 5513, 11025, 22050]
+        initial_freq = [690, 5513, 11025, 22050, 44100]
 
         for i in range(len(self.ups)):
             ch = upsample_initial_channel//(2**(i+1))
@@ -230,7 +230,8 @@ class DiscriminatorR(torch.nn.Module):
 class MultiPeriodDiscriminator(torch.nn.Module):
     def __init__(self, use_spectral_norm=False):
         super(MultiPeriodDiscriminator, self).__init__()
-        periods = [2,3,5,7,11]
+        periods = [2,3,5,7,11, 17, 23]
+
         resolutions = [[1024, 120, 600], [2048, 240, 1200], [512, 50, 240]]
 
         discs = [DiscriminatorR(resolutions[i], use_spectral_norm=use_spectral_norm) for i in range(len(resolutions))]

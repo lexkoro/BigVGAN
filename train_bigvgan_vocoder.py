@@ -26,7 +26,7 @@ from losses import (
     discriminator_loss,
     feature_loss
 )
-from mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from mel_processing import mel_spectrogram_torch, spec_to_mel_torch, custom_data_load
 
 torch.backends.cudnn.benchmark = True
 global_step = 0
@@ -61,20 +61,21 @@ def run(rank, n_gpus, hps):
     torch.manual_seed(hps.train.seed)
     torch.cuda.set_device(rank)
 
-    train_dataset = TextAudioLoader(hps.data.training_files, hps.data, is_train=True)
+    validation_filelist, training_filelist = custom_data_load(20)
+    # train_dataset = TextAudioLoader(hps.data.training_files, hps.data, is_train=True)
     train_sampler = DistributedBucketSampler(
-        train_dataset,
+        training_filelist,
         hps.train.batch_size,
         [32, 300, 400, 500, 600, 700, 800, 900, 1000],
         num_replicas=n_gpus,
         rank=rank,
         shuffle=True)
     collate_fn = TextAudioCollate()
-    train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
+    train_loader = DataLoader(training_filelist, num_workers=8, shuffle=False, pin_memory=True,
                               collate_fn=collate_fn, batch_sampler=train_sampler)
     if rank == 0:
-        eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-        eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
+        # eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
+        eval_loader = DataLoader(validation_filelist, num_workers=8, shuffle=False,
                                  batch_size=8, pin_memory=True,
                                  drop_last=False, collate_fn=collate_fn)
 
