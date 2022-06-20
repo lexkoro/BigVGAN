@@ -127,6 +127,7 @@ class TextAudioCollate():
         ------
         batch: [text_normalized, spec_normalized, wav_normalized]
         """
+        print(batch)
 
         max_spec_len = max([x[0].size(1) for x in batch])
         max_wav_len = max([x[1].size(1) for x in batch])
