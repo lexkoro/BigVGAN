@@ -57,10 +57,8 @@ class TextAudioLoader(torch.utils.data.Dataset):
         npz_new = []
         lengths = []
         for npz in self.npzs:
-            audio, sampling_rate = load_wav_to_torch(npz)
             npz_new.append(npz)
-            lengths.append(len(audio) // (self.hop_length))
-
+            lengths.append(os.path.getsize(npz) // (2 * self.hop_length))
 
         self.lengths = lengths
         self.npzs = npz_new
@@ -101,7 +99,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
             print(err)
             print(filename)
 
-        return spec, audio_norm
+        return (spec, audio_norm)
 
     def add_blank_token(self, text):
         if self.add_blank:
@@ -144,6 +142,7 @@ class TextAudioCollate():
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
         spec_padded.zero_()
         wav_padded.zero_()
+
         for i, row in enumerate(batch):
 
             spec = row[0]
