@@ -23,7 +23,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         self.is_train = is_train
         # self.npzs, self.spk_label = self.get_npz_path(self.spk_path)
-        self.npzs = custom_data_load(5)
+        _, self.npzs = custom_data_load(5)
 
         print("Total data len: ", len(self.npzs))
         self.text_cleaners = hparams.text_cleaners
@@ -53,6 +53,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         npz_new = []
         lengths = []
         for npz in self.npzs:
+            print(npz)
             audio, sampling_rate = load_wav_to_torch(npz)
             if len(audio)//512 < 400:
                 npz_new.append(npz)
