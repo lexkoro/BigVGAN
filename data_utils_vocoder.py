@@ -53,11 +53,9 @@ class TextAudioLoader(torch.utils.data.Dataset):
         npz_new = []
         lengths = []
         for npz in self.npzs:
-            print(npz)
             audio, sampling_rate = load_wav_to_torch(npz)
-            if len(audio)//512 < 400:
-                npz_new.append(npz)
-                lengths.append(len(audio) // (self.hop_length))
+            npz_new.append(npz)
+            lengths.append(len(audio) // (self.hop_length))
 
 
         self.lengths = lengths
