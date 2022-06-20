@@ -63,21 +63,27 @@ def run(rank, n_gpus, hps):
 
 
     train_dataset = TextAudioLoader(hps.data.training_files, hps.data, is_train=True)
-    train_sampler = DistributedBucketSampler(
+    train_loader = DataLoader(
         train_dataset,
-        hps.train.batch_size,
-        [32, 300, 400, 500, 600, 700, 800, 900, 1000],
-        num_replicas=n_gpus,
-        rank=rank,
-        shuffle=True)
-    collate_fn = TextAudioCollate()
-    train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
-                              collate_fn=collate_fn, batch_sampler=train_sampler)
-    if rank == 0:
-        eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-        eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
-                                 batch_size=8, pin_memory=True,
-                                 drop_last=False, collate_fn=collate_fn)
+        batch_size=hps.train.batch_size,
+        num_workers=8,
+        shuffle=False,
+        pin_memory=False,
+        collate_fn=train_dataset.collate_fn,
+        drop_last=False
+        # batch_sampler=train_sampler,
+    )
+    eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
+    # sampler_eval = utils.get_weighted_sampler(eval_dataset.audiopaths_sid_text)
+    eval_loader = DataLoader(
+        eval_dataset,
+        num_workers=1,
+        shuffle=False,
+        batch_size=8,
+        pin_memory=False,
+        drop_last=False,
+        collate_fn=eval_dataset.collate_fn,
+    )
 
     net_g = SynthesizerTrn(
 
