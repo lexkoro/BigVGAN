@@ -69,7 +69,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
     def get_audio_text_pair(self, audiopath_and_text):
         spec, wav = self.get_audio(audiopath_and_text)
 
-        return (_, spec, wav)
+        return (spec, wav)
 
     def get_audio(self, filename):
 
@@ -135,8 +135,8 @@ class TextAudioCollate():
         #     torch.LongTensor([x[1].size(1) for x in batch]),
         #     dim=0, descending=True)
 
-        max_spec_len = max([x[1].size(1) for x in batch])
-        max_wav_len = max([x[2].size(1) for x in batch])
+        max_spec_len = max([x[0].size(1) for x in batch])
+        max_wav_len = max([x[1].size(1) for x in batch])
 
         spec_lengths = torch.LongTensor(len(batch))
         wav_lengths = torch.LongTensor(len(batch))
