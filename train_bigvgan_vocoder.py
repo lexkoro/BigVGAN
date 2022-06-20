@@ -14,7 +14,6 @@ import utils
 
 from data_utils_vocoder import (
     TextAudioLoader,
-    TextAudioCollate,
     DistributedBucketSampler
 )
 from models_bigvgan import (
