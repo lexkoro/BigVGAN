@@ -129,36 +129,29 @@ class TextAudioCollate():
         ------
         batch: [text_normalized, spec_normalized, wav_normalized]
         """
-        # Right zero-pad all one-hot text sequences to max input length
-
-        # _, ids_sorted_decreasing = torch.sort(
-        #     torch.LongTensor([x[1].size(1) for x in batch]),
-        #     dim=0, descending=True)
 
         max_spec_len = max([x[0].size(1) for x in batch])
         max_wav_len = max([x[1].size(1) for x in batch])
 
         spec_lengths = torch.LongTensor(len(batch))
         wav_lengths = torch.LongTensor(len(batch))
+        # sid = torch.LongTensor(len(batch))
 
+        eid = torch.LongTensor(len(batch))
+        lid = torch.LongTensor(len(batch))
 
         spec_padded = torch.FloatTensor(len(batch), batch[0][1].size(0), max_spec_len)
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
-
         spec_padded.zero_()
         wav_padded.zero_()
-
-
-        for i in range(len(batch)):
-            row = batch[i]
-
+        for i, row in enumerate(batch):
 
             spec = row[0]
-            spec_padded[i, :, :spec.size(1)] = spec
+            spec_padded[i, :, : spec.size(1)] = spec
             spec_lengths[i] = spec.size(1)
 
             wav = row[1]
-            wav_padded[i, :, :wav.size(1)] = wav
+            wav_padded[i, :, : wav.size(1)] = wav
             wav_lengths[i] = wav.size(1)
 
         if self.return_ids:
