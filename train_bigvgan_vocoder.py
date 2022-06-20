@@ -39,6 +39,8 @@ def main():
     assert torch.cuda.is_available(), "CPU training is not allowed."
 
     n_gpus = torch.cuda.device_count()
+    print("Using Num. GPUs:", n_gpus)
+
     port = 50000 + random.randint(0,100)
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = str(port)
