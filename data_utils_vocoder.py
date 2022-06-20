@@ -36,7 +36,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
         self.filter_length = hparams.filter_length
         self.hop_length = hparams.hop_length
         self.win_length = hparams.win_length
-        self.sampling_rate = hparams.sampling_rate
 
         self.cleaned_text = getattr(hparams, "cleaned_text", False)
 
@@ -44,24 +43,24 @@ class TextAudioLoader(torch.utils.data.Dataset):
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 190)
 
-        self._filter()
-        print("filtered data len: ", len(self.npzs))
+    #     self._filter()
+    #     print("filtered data len: ", len(self.npzs))
 
-    def _filter(self):
-        """
-        Filter text & store spec lengths
-        """
-        # Store spectrogram lengths for Bucketing
-        # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
-        # spec_length = wav_length // hop_length
-        npz_new = []
-        lengths = []
-        for npz in self.npzs:
-            npz_new.append(npz)
-            lengths.append(os.path.getsize(npz) // (2 * self.hop_length))
+    # def _filter(self):
+    #     """
+    #     Filter text & store spec lengths
+    #     """
+    #     # Store spectrogram lengths for Bucketing
+    #     # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
+    #     # spec_length = wav_length // hop_length
+    #     npz_new = []
+    #     lengths = []
+    #     for npz in self.npzs:
+    #         npz_new.append(npz)
+    #         lengths.append(os.path.getsize(npz) // (2 * self.hop_length))
 
-        self.lengths = lengths
-        self.npzs = npz_new
+    #     self.lengths = lengths
+    #     self.npzs = npz_new
 
 
     def get_audio_text_pair(self, audiopath_and_text):
