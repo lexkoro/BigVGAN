@@ -23,7 +23,11 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         self.is_train = is_train
         # self.npzs, self.spk_label = self.get_npz_path(self.spk_path)
-        _, self.npzs = custom_data_load(5)
+
+        if self.is_train:
+            _, self.npzs = custom_data_load(5)
+        else:
+            self.npzs, _  = custom_data_load(5)
 
         print("Total data len: ", len(self.npzs))
         self.text_cleaners = hparams.text_cleaners
