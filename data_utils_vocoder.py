@@ -114,19 +114,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
         return len(self.npzs)
 
 
-    @staticmethod
-    def _sort_batch(batch, text_lengths):
-        """Sort the batch by the input text length for RNN efficiency.
-        Args:
-            batch (Dict): Batch returned by `__getitem__`.
-            text_lengths (List[int]): Lengths of the input character sequences.
-        """
-        text_lengths, ids_sorted_decreasing = torch.sort(
-            torch.LongTensor(text_lengths), dim=0, descending=True
-        )
-        batch = [batch[idx] for idx in ids_sorted_decreasing]
-        return batch, text_lengths, ids_sorted_decreasing
-
     def collate_fn(self, batch):
         """Collate's training batch from normalized text, audio and speaker identities
         PARAMS
@@ -143,13 +130,12 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         spec_lengths = torch.LongTensor(len(batch))
         wav_lengths = torch.LongTensor(len(batch))
-        # sid = torch.LongTensor(len(batch))
-
-        eid = torch.LongTensor(len(batch))
-        lid = torch.LongTensor(len(batch))
 
         spec_padded = torch.FloatTensor(len(batch), batch[0][1].size(0), max_spec_len)
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
+
+        print(spec_padded.shape)
+
         spec_padded.zero_()
         wav_padded.zero_()
 
