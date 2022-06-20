@@ -61,16 +61,23 @@ def run(rank, n_gpus, hps):
     torch.manual_seed(hps.train.seed)
     torch.cuda.set_device(rank)
 
-    validation_filelist, training_filelist = custom_data_load(20)
-    # train_dataset = TextAudioLoader(hps.data.training_files, hps.data, is_train=True)
 
-
-    train_loader = DataLoader(training_filelist, num_workers=8, shuffle=False, pin_memory=True)
+    train_dataset = TextAudioLoader(hps.data.training_files, hps.data, is_train=True)
+    train_sampler = DistributedBucketSampler(
+        train_dataset,
+        hps.train.batch_size,
+        [32, 300, 400, 500, 600, 700, 800, 900, 1000],
+        num_replicas=n_gpus,
+        rank=rank,
+        shuffle=True)
+    collate_fn = TextAudioCollate()
+    train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
+                              collate_fn=collate_fn, batch_sampler=train_sampler)
     if rank == 0:
-        # eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-        eval_loader = DataLoader(validation_filelist, num_workers=8, shuffle=False,
+        eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
+        eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
                                  batch_size=8, pin_memory=True,
-                                 drop_last=False)
+                                 drop_last=False, collate_fn=collate_fn)
 
     net_g = SynthesizerTrn(
 
@@ -131,12 +138,12 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
     if writers is not None:
         writer, writer_eval = writers
 
-    # train_loader.batch_sampler.set_epoch(epoch)
+    train_loader.batch_sampler.set_epoch(epoch)
     global global_step
 
     net_g.train()
     net_d.train()
-    for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, sid) in enumerate(train_loader):
+    for batch_idx, (spec, spec_lengths, y, y_lengths) in enumerate(train_loader):
 
         spec, spec_lengths = spec.cuda(rank, non_blocking=True), spec_lengths.cuda(rank, non_blocking=True)
         y, y_lengths = y.cuda(rank, non_blocking=True), y_lengths.cuda(rank, non_blocking=True)
@@ -241,19 +248,14 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
 def evaluate(hps, generator, eval_loader, writer_eval):
     generator.eval()
     with torch.no_grad():
-        for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths, sid) in enumerate(eval_loader):
-            x, x_lengths = x.cuda(0), x_lengths.cuda(0)
+        for batch_idx, (spec, spec_lengths, y, y_lengths) in enumerate(eval_loader):
             spec, spec_lengths = spec.cuda(0), spec_lengths.cuda(0)
             y, y_lengths = y.cuda(0), y_lengths.cuda(0)
 
-            sid = sid.cuda(0)
             # remove else
-            x = x[:4]
-            x_lengths = x_lengths[:4]
             spec = spec[:4]
             y = y[:4]
             y_lengths = y_lengths[:4]
-            sid = sid[:4]
 
             break
         y_hat= generator.module.infer(spec, max_len=1000)
