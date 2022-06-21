@@ -12,7 +12,7 @@ import random
 import commons
 import utils
 
-from data_utils_vocoder import TextAudioLoader, DistributedBucketSampler
+from data_utils_vocoder import TextAudioLoader
 from models_bigvgan import (
     SynthesizerTrn,
     MultiPeriodDiscriminator,

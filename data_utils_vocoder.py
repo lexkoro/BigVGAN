@@ -126,7 +126,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         spec_lengths = torch.LongTensor(len(batch))
         wav_lengths = torch.LongTensor(len(batch))
 
-        spec_padded = torch.FloatTensor(len(batch), batch[0][1].size(0), max_spec_len)
+        spec_padded = torch.FloatTensor(len(batch), batch[0][0].size(0), max_spec_len)
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
 
         spec_padded.zero_()
@@ -134,16 +134,12 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
         for i, row in enumerate(batch):
 
-            wav = row[1]
-            wav_padded[i, :, : wav.size(1)] = wav
-            wav_lengths[i] = wav.size(1)
-
-            print(wav_padded.shape)
-
             spec = row[0]
             spec_padded[i, :, : spec.size(1)] = spec
             spec_lengths[i] = spec.size(1)
 
-        if self.return_ids:
-            return spec_padded, spec_lengths, wav_padded, wav_lengths, 0
+            wav = row[1]
+            wav_padded[i, :, : wav.size(1)] = wav
+            wav_lengths[i] = wav.size(1)
+
         return spec_padded, spec_lengths, wav_padded, wav_lengths
