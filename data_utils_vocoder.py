@@ -12,22 +12,20 @@ from text import text_to_sequence, cleaned_text_to_sequence
 import torchaudio
 from mel_processing import custom_data_load
 
+
 class TextAudioLoader(torch.utils.data.Dataset):
     """
-        1) loads audio, text pairs
-        2) normalizes text and converts them to sequences of integers
-        3) computes spectrograms from audio files.
+    1) loads audio, text pairs
+    2) normalizes text and converts them to sequences of integers
+    3) computes spectrograms from audio files.
     """
 
-    def __init__(self, audiopaths_and_text, hparams, is_train=False):
+    def __init__(self, audiopaths, hparams, is_train=False):
 
         self.is_train = is_train
         # self.npzs, self.spk_label = self.get_npz_path(self.spk_path)
 
-        if self.is_train:
-            _, self.npzs = custom_data_load(20)
-        else:
-            self.npzs, _  = custom_data_load(20)
+        self.npzs = audiopaths
 
         print("Total data len: ", len(self.npzs))
         self.text_cleaners = hparams.text_cleaners
@@ -61,7 +59,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
 
     #     self.lengths = lengths
     #     self.npzs = npz_new
-
 
     def get_audio_text_pair(self, audiopath_and_text):
         spec, wav = self.get_audio(audiopath_and_text)
@@ -112,7 +109,6 @@ class TextAudioLoader(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.npzs)
 
-
     def collate_fn(self, batch):
         """Collate's training batch from normalized text, audio and speaker identities
         PARAMS
@@ -152,6 +148,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
             return spec_padded, spec_lengths, wav_padded, wav_lengths, 0
         return spec_padded, spec_lengths, wav_padded, wav_lengths
 
+
 class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
     """
     Maintain similar input lengths in a batch.
@@ -162,7 +159,15 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
     Ex) boundaries = [b1, b2, b3] -> any x s.t. length(x) <= b1 or length(x) > b3 are discarded.
     """
 
-    def __init__(self, dataset, batch_size, boundaries, num_replicas=None, rank=None, shuffle=True):
+    def __init__(
+        self,
+        dataset,
+        batch_size,
+        boundaries,
+        num_replicas=None,
+        rank=None,
+        shuffle=True,
+    ):
         super().__init__(dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle)
         self.lengths = dataset.lengths
         self.batch_size = batch_size
@@ -189,7 +194,9 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
         for i in range(len(buckets)):
             len_bucket = len(buckets[i])
             total_batch_size = self.num_replicas * self.batch_size
-            rem = (total_batch_size - (len_bucket % total_batch_size)) % total_batch_size
+            rem = (
+                total_batch_size - (len_bucket % total_batch_size)
+            ) % total_batch_size
             num_samples_per_bucket.append(len_bucket + rem)
         return buckets, num_samples_per_bucket
 
@@ -215,14 +222,23 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
 
             # add extra samples to make it evenly divisible
             rem = num_samples_bucket - len_bucket
-            ids_bucket = ids_bucket + ids_bucket * (rem // len_bucket) + ids_bucket[:(rem % len_bucket)]
+            ids_bucket = (
+                ids_bucket
+                + ids_bucket * (rem // len_bucket)
+                + ids_bucket[: (rem % len_bucket)]
+            )
 
             # subsample
-            ids_bucket = ids_bucket[self.rank::self.num_replicas]
+            ids_bucket = ids_bucket[self.rank :: self.num_replicas]
 
             # batching
             for j in range(len(ids_bucket) // self.batch_size):
-                batch = [bucket[idx] for idx in ids_bucket[j * self.batch_size:(j + 1) * self.batch_size]]
+                batch = [
+                    bucket[idx]
+                    for idx in ids_bucket[
+                        j * self.batch_size : (j + 1) * self.batch_size
+                    ]
+                ]
                 batches.append(batch)
 
         if self.shuffle:
