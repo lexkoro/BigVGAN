@@ -139,7 +139,7 @@ def run(rank, n_gpus, hps):
 
     train_loader = DataLoader(
         trainset,
-        num_workers=4,
+        num_workers=8,
         shuffle=False,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
@@ -189,6 +189,7 @@ def run(rank, n_gpus, hps):
 
     net_g.train()
     net_d.train()
+
     for epoch in range(max(0, epoch_str), hps.train.epochs):
 
         if n_gpus > 1:
@@ -327,59 +328,54 @@ def run(rank, n_gpus, hps):
                         os.path.join(hps.model_dir, "D_{}.pth".format(global_step)),
                     )
 
-            print("checkpoint", 3)
             global_step += 1
 
         if rank == 0:
-            if global_step % hps.train.eval_interval == 0:
-                net_g.eval()
-                torch.cuda.empty_cache()
-                with torch.no_grad():
-                    for batch_idx, batch in enumerate(eval_loader):
-                        x, y, _, _ = batch
+            net_g.eval()
+            torch.cuda.empty_cache()
+            with torch.no_grad():
+                for batch_idx, batch in enumerate(eval_loader):
+                    x, y, _, _ = batch
 
-                        y_hat = net_g(x.to(rank))
+                    y_hat = net_g(x.to(rank))
 
-                        y_g_hat_mel = mel_spectrogram(
-                            y_hat.squeeze(1),
-                            hps.data.filter_length,
-                            hps.data.n_mel_channels,
-                            hps.data.sampling_rate,
-                            hps.data.hop_length,
-                            hps.data.win_length,
-                            hps.data.mel_fmin,
-                            hps.data.mel_fmax,
-                        )
+                    y_g_hat_mel = mel_spectrogram(
+                        y_hat.squeeze(1),
+                        hps.data.filter_length,
+                        hps.data.n_mel_channels,
+                        hps.data.sampling_rate,
+                        hps.data.hop_length,
+                        hps.data.win_length,
+                        hps.data.mel_fmin,
+                        hps.data.mel_fmax,
+                    )
 
-                        if batch_idx <= 3:
-                            image_dict = {
-                                "gen/mel": utils.plot_spectrogram_to_numpy(
-                                    y_g_hat_mel[0].cpu().numpy()
-                                )
-                            }
-
-                            audio_dict = {"gen/audio_{}".format(batch_idx): y_hat[0]}
-                            if global_step == 0:
-                                image_dict.update(
-                                    {
-                                        "gt/mel": utils.plot_spectrogram_to_numpy(
-                                            x[0].cpu().numpy()
-                                        )
-                                    }
-                                )
-                                audio_dict.update(
-                                    {"gt/audio_{}".format(batch_idx): y[0]}
-                                )
-
-                            utils.summarize(
-                                writer=writer_eval,
-                                global_step=global_step,
-                                images=image_dict,
-                                audios=audio_dict,
-                                audio_sampling_rate=hps.data.sampling_rate,
+                    if batch_idx <= 3:
+                        image_dict = {
+                            "gen/mel": utils.plot_spectrogram_to_numpy(
+                                y_g_hat_mel[0].cpu().numpy()
                             )
+                        }
 
-                net_g.train()
+                        audio_dict = {"gen/audio_{}".format(batch_idx): y_hat[0]}
+                        if global_step == 0:
+                            image_dict.update(
+                                {
+                                    "gt/mel": utils.plot_spectrogram_to_numpy(
+                                        x[0].cpu().numpy()
+                                    )
+                                }
+                            )
+                            audio_dict.update({"gt/audio_{}".format(batch_idx): y[0]})
+
+                        utils.summarize(
+                            writer=writer_eval,
+                            global_step=global_step,
+                            images=image_dict,
+                            audios=audio_dict,
+                            audio_sampling_rate=hps.data.sampling_rate,
+                        )
+            net_g.train()
 
         if rank == 0:
             logger.info("====> Epoch: {}".format(epoch))
