@@ -71,6 +71,7 @@ def run(rank, n_gpus, hps):
     print("Process Group Created: ", rank)
     torch.manual_seed(hps.train.seed)
     torch.cuda.set_device(rank)
+    device = torch.device("cuda:{:d}".format(rank))
 
     net_g = Generator(
         hps.data.n_mel_channels,
@@ -131,6 +132,7 @@ def run(rank, n_gpus, hps):
         n_cache_reuse=0,
         shuffle=False if n_gpus > 1 else True,
         fmax_loss=hps.data.fmax_for_loss,
+        device=device,
     )
 
     train_sampler = DistributedSampler(trainset) if n_gpus > 1 else None
@@ -159,6 +161,7 @@ def run(rank, n_gpus, hps):
             False,
             n_cache_reuse=0,
             fmax_loss=hps.data.fmax_for_loss,
+            device=device,
         )
         eval_loader = DataLoader(
             validset,
