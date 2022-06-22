@@ -364,7 +364,7 @@ def train_and_evaluate(
                     for batch_idx, batch in enumerate(eval_loader):
                         x, y, _, _ = batch
 
-                        y_hat = net_g(x)
+                        y_hat = net_g(x.to(rank))
 
                         y_g_hat_mel = mel_spectrogram(
                             y_hat.squeeze(1),
