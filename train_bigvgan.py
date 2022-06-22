@@ -2,6 +2,8 @@ import os
 import random
 import time
 
+from async_timeout import timeout
+
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -141,6 +143,7 @@ def run(rank, n_gpus, hps):
         trainset,
         num_workers=0,
         shuffle=False,
+        timeout=10,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
         pin_memory=True,
@@ -167,6 +170,7 @@ def run(rank, n_gpus, hps):
             validset,
             num_workers=0,
             shuffle=False,
+            timeout=10,
             sampler=None,
             batch_size=1,
             pin_memory=True,
@@ -344,7 +348,7 @@ def train_and_evaluate(
                     scalars=scalar_dict,
                 )
 
-            if global_step % hps.train.checkpoint_interval == 0:
+            if global_step % hps.train.checkpoint_interval == 0 and global_step != 0:
                 utils.save_checkpoint(
                     net_g,
                     optim_g,
