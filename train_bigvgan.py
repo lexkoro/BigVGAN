@@ -113,7 +113,7 @@ def run(rank, n_gpus, hps):
         epoch_str = 1
         global_step = 0
 
-    validation_filelist, training_filelist = custom_data_load(100)
+    validation_filelist, training_filelist = custom_data_load(10)
 
     print("Training Filelist:", len(training_filelist))
     print("Validation Filelist:", len(validation_filelist))
@@ -376,8 +376,6 @@ def evaluate(hps, generator, eval_loader, writer_eval):
 
             y_hat = generator(x)
 
-            print("Eval:", y_hat.shape)
-
             y_g_hat_mel = mel_spectrogram(
                 y_hat.squeeze(1),
                 hps.data.filter_length,
@@ -390,7 +388,6 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             )
 
             if batch_idx <= 3:
-
                 image_dict = {
                     "gen/mel": utils.plot_spectrogram_to_numpy(
                         y_g_hat_mel[0].cpu().numpy()
