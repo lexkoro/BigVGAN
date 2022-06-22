@@ -31,8 +31,7 @@ def main():
     assert torch.cuda.is_available(), "CPU training is not allowed."
 
     n_gpus = torch.cuda.device_count()
-    hps.train.batch_size = int(hps.train.batch_size / n_gpus)
-    print("Batch size per GPU :", h.batch_size)
+
     print("Using Num. GPUs:", n_gpus)
 
     # port = 50000 + random.randint(0, 100)
@@ -40,6 +39,10 @@ def main():
     # os.environ["MASTER_PORT"] = str(port)
 
     hps = utils.get_hparams()
+
+    hps.train.batch_size = int(hps.train.batch_size / n_gpus)
+    print("Batch size per GPU :", hps.train.batch_size)
+
     mp.spawn(
         run,
         nprocs=n_gpus,
