@@ -139,7 +139,7 @@ def run(rank, n_gpus, hps):
 
     train_loader = DataLoader(
         trainset,
-        num_workers=4,
+        num_workers=0,
         shuffle=False,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
@@ -165,7 +165,7 @@ def run(rank, n_gpus, hps):
         )
         eval_loader = DataLoader(
             validset,
-            num_workers=1,
+            num_workers=0,
             shuffle=False,
             sampler=None,
             batch_size=1,
