@@ -282,17 +282,15 @@ def train_and_evaluate(
                 loss_gen, losses_gen = generator_loss(y_d_hat_g)
                 loss_gen_all = loss_gen + loss_fm + loss_mel
 
-        print("checkpoint", 1)
         optim_g.zero_grad()
         scaler.scale(loss_gen_all).backward()
         scaler.unscale_(optim_g)
         scaler.step(optim_g)
         scaler.update()
 
-        print("checkpoint", 2)
         if rank == 0:
             if global_step % hps.train.log_interval == 0:
-                # lr = optim_g.param_groups[0]["lr"]
+                lr = optim_g.param_groups[0]["lr"]
                 # losses = [loss_disc, loss_gen, loss_fm, loss_mel]
                 # logger.info(
                 #     "Train Epoch: {} [{:.0f}%]".format(
@@ -300,8 +298,8 @@ def train_and_evaluate(
                 #     )
                 # )
                 print(
-                    "Steps : {:d}, Gen Loss Total : {:4.3f}, Mel-Spec. Error : {:4.3f}, s/b : {:4.3f}".format(
-                        global_step, loss_gen_all, loss_mel, time.time() - start_b
+                    "Steps : {:d}, Gen Loss Total : {:4.3f}, Mel-Spec. Error : {:4.3f}, s/b : {:4.3f}, lr : {:4.5f}".format(
+                        global_step, loss_gen_all, loss_mel, time.time() - start_b, lr
                     )
                 )
                 # logger.info(
@@ -312,7 +310,7 @@ def train_and_evaluate(
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
                     "loss/d/total": loss_disc_all,
-                    # "learning_rate": lr,
+                    "learning_rate": lr,
                 }
                 scalar_dict.update({"loss/g/fm": loss_fm, "loss/g/mel": loss_mel})
 
@@ -343,9 +341,7 @@ def train_and_evaluate(
                     scalars=scalar_dict,
                 )
 
-            if global_step % hps.train.eval_interval == 0:
-                torch.cuda.empty_cache()
-                # evaluate(hps, net_g, eval_loader, writer_eval)
+            if global_step % hps.train.checkpoint_interval == 0:
                 utils.save_checkpoint(
                     net_g,
                     optim_g,
@@ -360,54 +356,61 @@ def train_and_evaluate(
                     epoch,
                     os.path.join(hps.model_dir, "D_{}.pth".format(global_step)),
                 )
+
+            if global_step % hps.train.eval_interval == 0:
+                net_g.eval()
+                torch.cuda.empty_cache()
+                with torch.no_grad():
+                    for batch_idx, batch in enumerate(eval_loader):
+                        x, y, _, _ = batch
+
+                        y_hat = net_g(x)
+
+                        y_g_hat_mel = mel_spectrogram(
+                            y_hat.squeeze(1),
+                            hps.data.filter_length,
+                            hps.data.n_mel_channels,
+                            hps.data.sampling_rate,
+                            hps.data.hop_length,
+                            hps.data.win_length,
+                            hps.data.mel_fmin,
+                            hps.data.mel_fmax,
+                        )
+
+                        if batch_idx <= 3:
+                            image_dict = {
+                                "gen/mel": utils.plot_spectrogram_to_numpy(
+                                    y_g_hat_mel[0].cpu().numpy()
+                                )
+                            }
+
+                            audio_dict = {"gen/audio_{}".format(batch_idx): y_hat[0]}
+                            if global_step == 0:
+                                image_dict.update(
+                                    {
+                                        "gt/mel": utils.plot_spectrogram_to_numpy(
+                                            x[0].cpu().numpy()
+                                        )
+                                    }
+                                )
+                                audio_dict.update(
+                                    {"gt/audio_{}".format(batch_idx): y[0]}
+                                )
+
+                            utils.summarize(
+                                writer=writer_eval,
+                                global_step=global_step,
+                                images=image_dict,
+                                audios=audio_dict,
+                                audio_sampling_rate=hps.data.sampling_rate,
+                            )
+                net_g.train()
+
         print("checkpoint", 3)
         global_step += 1
 
     if rank == 0:
         logger.info("====> Epoch: {}".format(epoch))
-
-
-def evaluate(hps, generator, eval_loader, writer_eval):
-    generator.eval()
-    with torch.no_grad():
-        for batch_idx, batch in enumerate(eval_loader):
-            x, y, _, _ = batch
-
-            y_hat = generator(x)
-
-            y_g_hat_mel = mel_spectrogram(
-                y_hat.squeeze(1),
-                hps.data.filter_length,
-                hps.data.n_mel_channels,
-                hps.data.sampling_rate,
-                hps.data.hop_length,
-                hps.data.win_length,
-                hps.data.mel_fmin,
-                hps.data.mel_fmax,
-            )
-
-            if batch_idx <= 3:
-                image_dict = {
-                    "gen/mel": utils.plot_spectrogram_to_numpy(
-                        y_g_hat_mel[0].cpu().numpy()
-                    )
-                }
-
-                audio_dict = {"gen/audio_{}".format(batch_idx): y_hat[0]}
-                if global_step == 0:
-                    image_dict.update(
-                        {"gt/mel": utils.plot_spectrogram_to_numpy(x[0].cpu().numpy())}
-                    )
-                    audio_dict.update({"gt/audio_{}".format(batch_idx): y[0]})
-
-                utils.summarize(
-                    writer=writer_eval,
-                    global_step=global_step,
-                    images=image_dict,
-                    audios=audio_dict,
-                    audio_sampling_rate=hps.data.sampling_rate,
-                )
-    generator.train()
 
 
 if __name__ == "__main__":
