@@ -65,7 +65,7 @@ def run(rank, n_gpus, hps):
         world_size=n_gpus,
         rank=rank,
     )
-    device = torch.device("cuda:{:d}".format(rank))
+    print("Process Group Created: ", rank)
     torch.manual_seed(hps.train.seed)
     torch.cuda.set_device(rank)
 
@@ -73,61 +73,6 @@ def run(rank, n_gpus, hps):
 
     print("Training Filelist:", len(training_filelist))
     print("Validation Filelist:", len(validation_filelist))
-
-    trainset = MelDataset(
-        training_filelist,
-        hps.train.segment_size,
-        hps.data.filter_length,
-        hps.data.n_mel_channels,
-        hps.data.hop_length,
-        hps.data.win_length,
-        hps.data.sampling_rate,
-        hps.data.mel_fmin,
-        hps.data.mel_fmax,
-        n_cache_reuse=0,
-        shuffle=False if n_gpus > 1 else True,
-        fmax_loss=hps.data.fmax_for_loss,
-        device=device,
-    )
-
-    train_sampler = DistributedSampler(trainset) if n_gpus > 1 else None
-
-    train_loader = DataLoader(
-        trainset,
-        num_workers=4,
-        shuffle=False,
-        sampler=train_sampler,
-        batch_size=hps.train.batch_size,
-        pin_memory=True,
-        drop_last=True,
-    )
-
-    if rank == 0:
-        validset = MelDataset(
-            validation_filelist,
-            hps.train.segment_size,
-            hps.data.filter_length,
-            hps.data.n_mel_channels,
-            hps.data.hop_length,
-            hps.data.win_length,
-            hps.data.sampling_rate,
-            hps.data.mel_fmin,
-            hps.data.mel_fmax,
-            False,
-            False,
-            n_cache_reuse=0,
-            fmax_loss=hps.data.fmax_for_loss,
-            device=device,
-        )
-        eval_loader = DataLoader(
-            validset,
-            num_workers=1,
-            shuffle=False,
-            sampler=None,
-            batch_size=1,
-            pin_memory=True,
-            drop_last=True,
-        )
 
     net_g = Generator(
         hps.data.n_mel_channels,
@@ -159,6 +104,59 @@ def run(rank, n_gpus, hps):
     )
     net_g = DDP(net_g, device_ids=[rank])
     net_d = DDP(net_d, device_ids=[rank])
+
+    trainset = MelDataset(
+        training_filelist,
+        hps.train.segment_size,
+        hps.data.filter_length,
+        hps.data.n_mel_channels,
+        hps.data.hop_length,
+        hps.data.win_length,
+        hps.data.sampling_rate,
+        hps.data.mel_fmin,
+        hps.data.mel_fmax,
+        n_cache_reuse=0,
+        shuffle=False if n_gpus > 1 else True,
+        fmax_loss=hps.data.fmax_for_loss,
+    )
+
+    train_sampler = DistributedSampler(trainset) if n_gpus > 1 else None
+
+    train_loader = DataLoader(
+        trainset,
+        num_workers=8,
+        shuffle=False,
+        sampler=train_sampler,
+        batch_size=hps.train.batch_size,
+        pin_memory=True,
+        drop_last=True,
+    )
+
+    if rank == 0:
+        validset = MelDataset(
+            validation_filelist,
+            hps.train.segment_size,
+            hps.data.filter_length,
+            hps.data.n_mel_channels,
+            hps.data.hop_length,
+            hps.data.win_length,
+            hps.data.sampling_rate,
+            hps.data.mel_fmin,
+            hps.data.mel_fmax,
+            False,
+            False,
+            n_cache_reuse=0,
+            fmax_loss=hps.data.fmax_for_loss,
+        )
+        eval_loader = DataLoader(
+            validset,
+            num_workers=1,
+            shuffle=False,
+            sampler=None,
+            batch_size=1,
+            pin_memory=True,
+            drop_last=True,
+        )
 
     try:
         _, _, _, epoch_str = utils.load_checkpoint(
@@ -192,7 +190,6 @@ def run(rank, n_gpus, hps):
                 [scheduler_g, scheduler_d],
                 scaler,
                 [train_loader, eval_loader],
-                device,
                 logger,
                 [writer, writer_eval],
             )
@@ -206,7 +203,6 @@ def run(rank, n_gpus, hps):
                 [scheduler_g, scheduler_d],
                 scaler,
                 [train_loader, None],
-                device,
                 None,
                 None,
             )
@@ -215,7 +211,7 @@ def run(rank, n_gpus, hps):
 
 
 def train_and_evaluate(
-    rank, epoch, hps, nets, optims, schedulers, scaler, loaders, device, logger, writers
+    rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers
 ):
     net_g, net_d = nets
     optim_g, optim_d = optims
@@ -231,9 +227,9 @@ def train_and_evaluate(
     for batch_idx, batch in enumerate(train_loader):
 
         x, y, _, y_mel = batch
-        x = torch.autograd.Variable(x.to(device, non_blocking=True))
-        y = torch.autograd.Variable(y.to(device, non_blocking=True))
-        y_mel = torch.autograd.Variable(y_mel.to(device, non_blocking=True))
+        x = x.cuda(rank, non_blocking=True)
+        y = y.cuda(rank, non_blocking=True)
+        y_mel = y_mel.cuda(rank, non_blocking=True)
         y = y.unsqueeze(1)
 
         with autocast(enabled=hps.train.fp16_run):
@@ -332,7 +328,7 @@ def train_and_evaluate(
 
             if global_step % hps.train.eval_interval == 0:
                 torch.cuda.empty_cache()
-                evaluate(hps, net_g, eval_loader, writer_eval, device)
+                evaluate(hps, net_g, eval_loader, writer_eval)
                 utils.save_checkpoint(
                     net_g,
                     optim_g,
@@ -353,13 +349,13 @@ def train_and_evaluate(
         logger.info("====> Epoch: {}".format(epoch))
 
 
-def evaluate(hps, generator, eval_loader, writer_eval, device):
+def evaluate(hps, generator, eval_loader, writer_eval):
     generator.eval()
     with torch.no_grad():
         for batch_idx, batch in enumerate(eval_loader):
             x, y, _, _ = batch
 
-            y_hat = generator(x.to(device))
+            y_hat = generator(x)
 
             y_g_hat_mel = mel_spectrogram(
                 y_hat.squeeze(1),
