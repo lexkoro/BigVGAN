@@ -358,7 +358,7 @@ def run(rank, n_gpus, hps):
                         }
 
                         audio_dict = {"gen/audio_{}".format(batch_idx): y_hat[0]}
-                        if global_step == 0:
+                        if epoch == 0:
                             image_dict.update(
                                 {
                                     "gt/mel": utils.plot_spectrogram_to_numpy(

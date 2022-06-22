@@ -17,7 +17,6 @@ from torchaudio import transforms
 #     Compose,
 #     AddGaussianSNR,
 #     ApplyImpulseResponse,
-#     SevenBandParametricEQ,
 # )
 
 MAX_WAV_VALUE = 32768.0
@@ -119,21 +118,21 @@ def custom_data_load(eval_split_size):
         "/home/alexander/Projekte/44k_SR_Data/Gothic3",
         True,
     )
-    # print("G3: ", len(gothic3_wavs))
-    # risen1_wavs = load_w3_risen12("/home/alexander/Projekte/44k_SR_Data/Risen1/")
-    # print("R1: ", len(risen1_wavs))
-    # risen2_wavs = load_w3_risen12("/home/alexander/Projekte/44k_SR_Data/Risen2/")
-    # print("R2: ", len(risen2_wavs))
-    # risen3_wavs = find_wav_files("/home/alexander/Projekte/44k_SR_Data/Risen3")
-    # print("R3: ", len(risen3_wavs))
-    # skyrim_wavs = load_skyrim("/home/alexander/Projekte/44k_SR_Data/Skyrim")
-    # print("Skyrim: ", len(skyrim_wavs))
-    # gothic2_wavs = find_g2_wav_files("/home/alexander/Projekte/44k_SR_Data/Gothic2")
-    # print("G2: ", len(gothic2_wavs))
-    # custom_wavs = find_wav_files(
-    #     "/home/alexander/Projekte/44k_SR_Data/CustomVoices",
-    #     False,
-    # )
+    print("G3: ", len(gothic3_wavs))
+    risen1_wavs = load_w3_risen12("/home/alexander/Projekte/44k_SR_Data/Risen1/")
+    print("R1: ", len(risen1_wavs))
+    risen2_wavs = load_w3_risen12("/home/alexander/Projekte/44k_SR_Data/Risen2/")
+    print("R2: ", len(risen2_wavs))
+    risen3_wavs = find_wav_files("/home/alexander/Projekte/44k_SR_Data/Risen3")
+    print("R3: ", len(risen3_wavs))
+    skyrim_wavs = load_skyrim("/home/alexander/Projekte/44k_SR_Data/Skyrim")
+    print("Skyrim: ", len(skyrim_wavs))
+    gothic2_wavs = find_g2_wav_files("/home/alexander/Projekte/44k_SR_Data/Gothic2")
+    print("G2: ", len(gothic2_wavs))
+    custom_wavs = find_wav_files(
+        "/home/alexander/Projekte/44k_SR_Data/CustomVoices",
+        False,
+    )
     # vctk_wavs = find_wav_files(
     #     "/home/alexander/Projekte/44k_SR_Data/VCTK/wav44",
     #     False,
@@ -141,14 +140,13 @@ def custom_data_load(eval_split_size):
     # print("VCTK: ", len(vctk_wavs))
 
     wav_paths = (
-        # gothic2_wavs
-        # +
-        gothic3_wavs
-        # + risen1_wavs
-        # + risen2_wavs
-        # + risen3_wavs
-        # + skyrim_wavs
-        # + custom_wavs
+        gothic2_wavs
+        + gothic3_wavs
+        + risen1_wavs
+        + risen2_wavs
+        + risen3_wavs
+        + skyrim_wavs
+        + custom_wavs
         # + vctk_wavs
     )
 
