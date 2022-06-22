@@ -1,7 +1,7 @@
-import torch 
-from torch.nn import functional as F
 import math
 
+import torch
+from torch.nn import functional as F
 
 import commons
 

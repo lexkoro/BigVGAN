@@ -1,16 +1,17 @@
-import time
 import os
 import random
+import time
+from glob import glob
+
 import numpy as np
 import torch
 import torch.utils.data
-from glob import glob
-import commons
-from mel_processing import spectrogram_torch
-from utils import load_wav_to_torch, load_filepaths_and_text
-from text import text_to_sequence, cleaned_text_to_sequence
 import torchaudio
-from mel_processing import custom_data_load
+from mel_processing import custom_data_load, spectrogram_torch
+
+import commons
+from text import cleaned_text_to_sequence, text_to_sequence
+from utils import load_filepaths_and_text, load_wav_to_torch
 
 
 class TextAudioLoader(torch.utils.data.Dataset):

@@ -1,13 +1,16 @@
-import utils
 import argparse
-import json
 import glob
+import json
 import os
-import numpy as np
+
 import librosa
-from tqdm import tqdm
+import numpy as np
 import scipy.signal as sps
+from tqdm import tqdm
+
+import utils
 from text import text_to_sequence
+
 
 def main():
     parser = argparse.ArgumentParser()

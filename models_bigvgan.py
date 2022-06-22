@@ -1,16 +1,14 @@
 import torch
+import torchaudio.transforms as T
 from torch import nn
+from torch.cuda.amp import autocast
+from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
 from torch.nn import functional as F
+from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
 
 import commons
 import modules
-
-from torch.nn import Conv1d, ConvTranspose1d, AvgPool1d, Conv2d
-from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
-from commons import init_weights, get_padding
-
-from torch.cuda.amp import autocast
-import torchaudio.transforms as T
+from commons import get_padding, init_weights
 
 
 class AMPBlock(torch.nn.Module):
