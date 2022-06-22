@@ -318,26 +318,22 @@ class MelDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         filename = self.audio_files[index]
-        if self._cache_ref_count == 0:
-            try:
-                audio, sampling_rate = load_wav(filename)
-            except Exception as er:
-                print(filename)
 
-            audio = audio / MAX_WAV_VALUE
-            if not self.fine_tuning:
-                audio = normalize(audio) * 0.95
-            self.cached_wav = audio
-            if sampling_rate != self.sampling_rate:
-                raise ValueError(
-                    "{} SR doesn't match target {} SR".format(
-                        sampling_rate, self.sampling_rate
-                    )
+        try:
+            audio, sampling_rate = load_wav(filename)
+        except Exception as er:
+            print(filename)
+
+        audio = audio / MAX_WAV_VALUE
+        if not self.fine_tuning:
+            audio = normalize(audio) * 0.95
+
+        if sampling_rate != self.sampling_rate:
+            raise ValueError(
+                "{} SR doesn't match target {} SR".format(
+                    sampling_rate, self.sampling_rate
                 )
-            self._cache_ref_count = self.n_cache_reuse
-        else:
-            audio = self.cached_wav
-            self._cache_ref_count -= 1
+            )
 
         audio = torch.FloatTensor(audio)
         audio = audio.unsqueeze(0)
