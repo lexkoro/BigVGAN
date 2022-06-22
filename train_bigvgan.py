@@ -139,9 +139,9 @@ def run(rank, n_gpus, hps):
 
     train_loader = DataLoader(
         trainset,
-        num_workers=0,
+        num_workers=4,
         shuffle=False,
-        timeout=10,
+        timeout=5,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
         pin_memory=True,
@@ -166,7 +166,7 @@ def run(rank, n_gpus, hps):
         )
         eval_loader = DataLoader(
             validset,
-            num_workers=0,
+            num_workers=1,
             shuffle=False,
             timeout=10,
             sampler=None,
