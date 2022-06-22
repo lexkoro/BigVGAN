@@ -2,8 +2,6 @@ import os
 import random
 import time
 
-from async_timeout import timeout
-
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
