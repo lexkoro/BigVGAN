@@ -31,11 +31,13 @@ def main():
     assert torch.cuda.is_available(), "CPU training is not allowed."
 
     n_gpus = torch.cuda.device_count()
+    hps.train.batch_size = int(hps.train.batch_size / n_gpus)
+    print("Batch size per GPU :", h.batch_size)
     print("Using Num. GPUs:", n_gpus)
 
-    port = 50000 + random.randint(0, 100)
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = str(port)
+    # port = 50000 + random.randint(0, 100)
+    # os.environ["MASTER_ADDR"] = "localhost"
+    # os.environ["MASTER_PORT"] = str(port)
 
     hps = utils.get_hparams()
     mp.spawn(
@@ -66,11 +68,6 @@ def run(rank, n_gpus, hps):
     print("Process Group Created: ", rank)
     torch.manual_seed(hps.train.seed)
     torch.cuda.set_device(rank)
-
-    validation_filelist, training_filelist = custom_data_load(20)
-
-    print("Training Filelist:", len(training_filelist))
-    print("Validation Filelist:", len(validation_filelist))
 
     net_g = Generator(
         hps.data.n_mel_channels,
@@ -113,6 +110,11 @@ def run(rank, n_gpus, hps):
         epoch_str = 1
         global_step = 0
 
+    validation_filelist, training_filelist = custom_data_load(100)
+
+    print("Training Filelist:", len(training_filelist))
+    print("Validation Filelist:", len(validation_filelist))
+
     trainset = MelDataset(
         training_filelist,
         hps.train.segment_size,
@@ -130,14 +132,15 @@ def run(rank, n_gpus, hps):
 
     train_sampler = DistributedSampler(trainset) if n_gpus > 1 else None
 
+    print("Use Distributed Sampler:", train_sampler is not None)
+
     train_loader = DataLoader(
         trainset,
-        num_workers=8,
+        num_workers=4,
         shuffle=False,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
         pin_memory=True,
-        drop_last=True,
     )
 
     if rank == 0:
@@ -232,7 +235,6 @@ def train_and_evaluate(
     net_g.train()
     net_d.train()
     for batch_idx, batch in enumerate(train_loader):
-
         x, y, _, y_mel = batch
         x = x.cuda(rank, non_blocking=True)
         y = y.cuda(rank, non_blocking=True)
@@ -266,7 +268,6 @@ def train_and_evaluate(
         optim_d.zero_grad()
         scaler.scale(loss_disc_all).backward()
         scaler.unscale_(optim_d)
-        grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
         scaler.step(optim_d)
 
         with autocast(enabled=hps.train.fp16_run):
@@ -279,33 +280,37 @@ def train_and_evaluate(
                 loss_gen, losses_gen = generator_loss(y_d_hat_g)
                 loss_gen_all = loss_gen + loss_fm + loss_mel
 
+        print("checkpoint", 1)
         optim_g.zero_grad()
         scaler.scale(loss_gen_all).backward()
         scaler.unscale_(optim_g)
-        grad_norm_g = commons.clip_grad_value_(net_g.parameters(), None)
         scaler.step(optim_g)
         scaler.update()
 
+        print("checkpoint", 2)
         if rank == 0:
             if global_step % hps.train.log_interval == 0:
-                lr = optim_g.param_groups[0]["lr"]
-                losses = [loss_disc, loss_gen, loss_fm, loss_mel]
-                logger.info(
-                    "Train Epoch: {} [{:.0f}%]".format(
-                        epoch, 100.0 * batch_idx / len(train_loader)
+                # lr = optim_g.param_groups[0]["lr"]
+                # losses = [loss_disc, loss_gen, loss_fm, loss_mel]
+                # logger.info(
+                #     "Train Epoch: {} [{:.0f}%]".format(
+                #         epoch, 100.0 * batch_idx / len(train_loader)
+                #     )
+                # )
+                print(
+                    "Steps : {:d}, Gen Loss Total : {:4.3f}, Mel-Spec. Error : {:4.3f}, s/b : {:4.3f}".format(
+                        global_step, loss_gen_all, loss_mel, time.time() - start_b
                     )
                 )
-                logger.info(
-                    [x.item() for x in losses]
-                    + [global_step, lr, time.time() - start_b]
-                )
+                # logger.info(
+                #     [x.item() for x in losses]
+                #     + [global_step, lr, time.time() - start_b]
+                # )
 
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
                     "loss/d/total": loss_disc_all,
-                    "learning_rate": lr,
-                    "grad_norm_d": grad_norm_d,
-                    "grad_norm_g": grad_norm_g,
+                    # "learning_rate": lr,
                 }
                 scalar_dict.update({"loss/g/fm": loss_fm, "loss/g/mel": loss_mel})
 
@@ -353,6 +358,7 @@ def train_and_evaluate(
                     epoch,
                     os.path.join(hps.model_dir, "D_{}.pth".format(global_step)),
                 )
+        print("checkpoint", 3)
         global_step += 1
 
     if rank == 0:
@@ -366,6 +372,8 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             x, y, _, _ = batch
 
             y_hat = generator(x)
+
+            print("Eval:", y_hat.shape)
 
             y_g_hat_mel = mel_spectrogram(
                 y_hat.squeeze(1),
