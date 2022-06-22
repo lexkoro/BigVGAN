@@ -261,7 +261,9 @@ def run(rank, n_gpus, hps):
                     #     )
                     # )
                     print(
-                        "Steps : {:d}, Gen Loss Total : {:4.3f}, Mel-Spec. Error : {:4.3f}, s/b : {:4.3f}, lr : {:4.5f}".format(
+                        " Epoch: {} [{:.0f}%] - Steps : {:d}, Gen Loss Total : {:4.3f}, Mel-Spec. Error : {:4.3f}, s/b : {:4.3f}, lr : {:4.5f}".format(
+                            epoch,
+                            100.0 * batch_idx / len(train_loader),
                             global_step,
                             loss_gen_all,
                             loss_mel,
