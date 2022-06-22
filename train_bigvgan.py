@@ -111,7 +111,7 @@ def run(rank, n_gpus, hps):
         )
         global_step = (epoch_str - 1) * len(train_loader)
     except:
-        epoch_str = 1
+        epoch_str = -1
         global_step = 0
 
     validation_filelist, training_filelist = custom_data_load(5)
@@ -179,21 +179,17 @@ def run(rank, n_gpus, hps):
         net_d = DDP(net_d, device_ids=[rank]).to(rank)
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
-        optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
+        optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str
     )
     scheduler_d = torch.optim.lr_scheduler.ExponentialLR(
-        optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
+        optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str
     )
 
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
     net_g.train()
     net_d.train()
-    for epoch in range(epoch_str, hps.train.epochs + 1):
-
-        if rank == 0:
-            start = time.time()
-            print("Epoch: {}".format(epoch + 1))
+    for epoch in range(max(0, epoch_str), hps.train.epochs):
 
         if n_gpus > 1:
             train_sampler.set_epoch(epoch)
