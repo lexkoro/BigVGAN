@@ -135,8 +135,6 @@ def run(rank, n_gpus, hps):
 
     train_sampler = DistributedSampler(trainset) if n_gpus > 1 else None
 
-    print("Use Distributed Sampler:", train_sampler is not None)
-
     train_loader = DataLoader(
         trainset,
         num_workers=4,
@@ -173,6 +171,7 @@ def run(rank, n_gpus, hps):
         )
 
     if n_gpus > 1:
+        print("Using Distributed Data Loader")
         net_g = DDP(net_g, device_ids=[rank]).to(rank)
         net_d = DDP(net_d, device_ids=[rank]).to(rank)
 
@@ -346,7 +345,7 @@ def train_and_evaluate(
 
             if global_step % hps.train.eval_interval == 0:
                 torch.cuda.empty_cache()
-                evaluate(hps, net_g, eval_loader, writer_eval)
+                # evaluate(hps, net_g, eval_loader, writer_eval)
                 utils.save_checkpoint(
                     net_g,
                     optim_g,
