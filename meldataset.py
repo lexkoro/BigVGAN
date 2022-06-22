@@ -20,7 +20,7 @@ from torchaudio import transforms
 # )
 
 MAX_WAV_VALUE = 32768.0
-SEQ_LENGTH = int(1.0 * 44100)
+SEQ_LENGTH = int(1.5 * 44100)
 MAX_SEQ_LENGTH = int(6.0 * 44100)
 # NOISE_PATH = "/home/akorolev/master/projects/data/SpeechData/noise_data/datasets_fullband/noise_fullband"
 RIR_PATH = "/home/alexander/Projekte/smallroom22050"

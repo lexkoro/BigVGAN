@@ -231,6 +231,7 @@ def run(rank, n_gpus, hps):
             optim_d.zero_grad()
             scaler.scale(loss_disc_all).backward()
             scaler.unscale_(optim_d)
+            grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
             scaler.step(optim_d)
 
             with autocast(enabled=hps.train.fp16_run):
@@ -246,6 +247,7 @@ def run(rank, n_gpus, hps):
             optim_g.zero_grad()
             scaler.scale(loss_gen_all).backward()
             scaler.unscale_(optim_g)
+            grad_norm_g = commons.clip_grad_value_(net_g.parameters(), None)
             scaler.step(optim_g)
             scaler.update()
 
