@@ -1,23 +1,21 @@
 import os
+import random
+import time
+
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.cuda.amp import GradScaler, autocast
 from torch.nn import functional as F
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
-import torch.multiprocessing as mp
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.cuda.amp import autocast, GradScaler
-import random
 
 import commons
 import utils
-
-from models_bigvgan import (
-    Generator,
-    MultiPeriodDiscriminator,
-)
-from losses import generator_loss, discriminator_loss, feature_loss
-from meldataset import MelDataset, mel_spectrogram, custom_data_load
+from losses import discriminator_loss, feature_loss, generator_loss
+from meldataset import MelDataset, custom_data_load, mel_spectrogram
+from models_bigvgan import Generator, MultiPeriodDiscriminator
 
 torch.backends.cudnn.benchmark = True
 global_step = 0
@@ -103,6 +101,18 @@ def run(rank, n_gpus, hps):
         eps=hps.train.eps,
     )
 
+    try:
+        _, _, _, epoch_str = utils.load_checkpoint(
+            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
+        )
+        _, _, _, epoch_str = utils.load_checkpoint(
+            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
+        )
+        global_step = (epoch_str - 1) * len(train_loader)
+    except:
+        epoch_str = 1
+        global_step = 0
+
     trainset = MelDataset(
         training_filelist,
         hps.train.segment_size,
@@ -156,21 +166,9 @@ def run(rank, n_gpus, hps):
             drop_last=True,
         )
 
-    try:
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g
-        )
-        _, _, _, epoch_str = utils.load_checkpoint(
-            utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d
-        )
-        global_step = (epoch_str - 1) * len(train_loader)
-    except:
-        epoch_str = 1
-        global_step = 0
-
     if n_gpus > 1:
-        net_g = DDP(net_g, device_ids=[rank])
-        net_d = DDP(net_d, device_ids=[rank])
+        net_g = DDP(net_g, device_ids=[rank]).to(rank)
+        net_d = DDP(net_d, device_ids=[rank]).to(rank)
 
     scheduler_g = torch.optim.lr_scheduler.ExponentialLR(
         optim_g, gamma=hps.train.lr_decay, last_epoch=epoch_str - 2
@@ -182,6 +180,10 @@ def run(rank, n_gpus, hps):
     scaler = GradScaler(enabled=hps.train.fp16_run)
 
     for epoch in range(epoch_str, hps.train.epochs + 1):
+
+        if n_gpus > 1:
+            train_sampler.set_epoch(epoch)
+
         if rank == 0:
             train_and_evaluate(
                 rank,
@@ -215,6 +217,9 @@ def run(rank, n_gpus, hps):
 def train_and_evaluate(
     rank, epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers
 ):
+
+    if rank == 0:
+        start_b = time.time()
     net_g, net_d = nets
     optim_g, optim_d = optims
     scheduler_g, scheduler_d = schedulers
@@ -290,7 +295,10 @@ def train_and_evaluate(
                         epoch, 100.0 * batch_idx / len(train_loader)
                     )
                 )
-                logger.info([x.item() for x in losses] + [global_step, lr])
+                logger.info(
+                    [x.item() for x in losses]
+                    + [global_step, lr, time.time() - start_b]
+                )
 
                 scalar_dict = {
                     "loss/g/total": loss_gen_all,
