@@ -114,7 +114,7 @@ def run(rank, n_gpus, hps):
         epoch_str = 1
         global_step = 0
 
-    validation_filelist, training_filelist = custom_data_load(10)
+    validation_filelist, training_filelist = custom_data_load(5)
 
     print("Training Filelist:", len(training_filelist))
     print("Validation Filelist:", len(validation_filelist))
@@ -141,7 +141,7 @@ def run(rank, n_gpus, hps):
         trainset,
         num_workers=4,
         shuffle=False,
-        timeout=5,
+        timeout=15,
         sampler=train_sampler,
         batch_size=hps.train.batch_size,
         pin_memory=True,
@@ -168,7 +168,7 @@ def run(rank, n_gpus, hps):
             validset,
             num_workers=1,
             shuffle=False,
-            timeout=10,
+            timeout=15,
             sampler=None,
             batch_size=1,
             pin_memory=True,
