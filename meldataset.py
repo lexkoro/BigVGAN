@@ -115,7 +115,7 @@ def find_g2_wav_files(data_path):
 
 def custom_data_load(eval_split_size):
     gothic3_wavs = find_wav_files(
-        "/mnt/d/DATA/Gothic3",
+        "/home/alexander/Projekte/44k_SR_Data/Gothic3",
         True,
     )
     # print("G3: ", len(gothic3_wavs))
