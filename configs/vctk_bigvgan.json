@@ -27,7 +27,7 @@
     "win_length": 2048,
     "n_mel_channels": 100,
     "mel_fmin": 0.0,
-    "mel_fmax": 10000,
+    "mel_fmax": null,
     "fmax_for_loss": null,
     "add_blank": true,
     "n_speakers": 108,

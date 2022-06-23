@@ -289,14 +289,14 @@ class MelDataset(torch.utils.data.Dataset):
         self.device = device
         self.fine_tuning = fine_tuning
         self.base_mels_path = base_mels_path
-        self.upsample = transforms.Resample(
-            orig_freq=22050,
-            new_freq=44100,
-            resampling_method="kaiser_window",
-            lowpass_filter_width=6,
-            rolloff=0.99,
-            dtype=torch.float32,
-        )
+        # self.upsample = transforms.Resample(
+        #     orig_freq=22050,
+        #     new_freq=44100,
+        #     resampling_method="kaiser_window",
+        #     lowpass_filter_width=6,
+        #     rolloff=0.99,
+        #     dtype=torch.float32,
+        # )
         self.downsample = transforms.Resample(
             orig_freq=44100,
             new_freq=22050,
@@ -347,25 +347,27 @@ class MelDataset(torch.utils.data.Dataset):
                         audio, (0, self.segment_size - audio.size(1)), "constant"
                     )
 
-            if True:
-                augmented_audio = self.augment(audio)
-            use_augmented = hasattr(augmented_audio, "shape") and (
-                augmented_audio.shape == audio.shape
-            )
-            if not use_augmented:
-                print(
-                    "Shape mismatch, audio not augmented",
-                    audio.shape,
-                    augmented_audio.shape,
-                )
+            # if True:
+            #     augmented_audio = self.augment(audio)
+            # use_augmented = hasattr(augmented_audio, "shape") and (
+            #     augmented_audio.shape == audio.shape
+            # )
 
+            # if not use_augmented:
+            #     print(
+            #         "Shape mismatch, audio not augmented",
+            #         audio.shape,
+            #         augmented_audio.shape,
+            #     )
+
+            augmented_audio = self.downsample(audio)
             mel = mel_spectrogram(
-                augmented_audio if use_augmented else audio,
+                augmented_audio,
                 self.n_fft,
                 self.num_mels,
-                self.sampling_rate,
-                self.hop_size,
-                self.win_size,
+                self.sampling_rate // 2,
+                self.hop_size // 2,
+                self.win_size // 2,
                 self.fmin,
                 self.fmax,
                 center=False,
